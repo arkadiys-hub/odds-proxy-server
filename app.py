@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
@@ -16,8 +17,6 @@ def get_odds():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run()
-if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
+    # Запускаем на 0.0.0.0, чтобы сервис был доступен извне (Render)
     app.run(host="0.0.0.0", port=port)
