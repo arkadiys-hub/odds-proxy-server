@@ -150,6 +150,7 @@
 
       try {
         const res = await fetch('https://odds-proxy-server-1.onrender.com/api/odds');
+        if (!res.ok) throw new Error(`Ошибка сети: ${res.status}`);
         const data = await res.json();
 
         matchList.innerHTML = '';
@@ -171,6 +172,7 @@
         });
       } catch (e) {
         matchList.innerHTML = 'Ошибка загрузки матчей';
+        console.error(e);
       }
     }
 
@@ -179,16 +181,8 @@
       generateCoefInputs(coefs);
       calculate();
     }
-
-    // Тест загрузки API в консоль
-    fetch('https://odds-proxy-server-1.onrender.com/api/odds')
-      .then(res => res.json())
-      .then(data => console.log('Данные с API:', data))
-      .catch(err => console.error('Ошибка при загрузке API:', err));
   </script>
 </body>
 </html>
-git mv СтароеИмяФайла.html index.html
-git commit -m "Переименовал HTML в index.html"
-git push
+
 
