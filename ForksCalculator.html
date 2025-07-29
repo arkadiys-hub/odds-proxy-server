@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Калькулятор Вилок</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: url('https://images.unsplash.com/photo-1605902711622-cfb43c4437d5?ixlib=rb-4.0.0&auto=format&fit=crop&w=1350&q=80') no-repeat center center fixed;
+      background-size: cover;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    }
+    h2 {
+      text-align: center;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .result {
+      background: #e7f4e4;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .alert {
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+    }
+    .alert.success { background-color: #d4edda; color: #155724; }
+    .alert.warning { background-color: #fff3cd; color: #856404; }
+    .alert.error { background-color: #f8d7da; color: #721c24; }
+    .match-list {
+      margin-top: 20px;
+    }
+    .match {
+      background: #f0f0f0;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+    }
+    .match button {
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Калькулятор Вилок</h2>
+
+    <div>
+      <button onclick="loadMatches()">Загрузить матчи</button>
+      <div class="match-list" id="matchList"></div>
+    </div>
+
+    <label>Количество исходов:</label>
+    <select id="outcomes">
+      <option value="2">2</option>
+      <option value="3">3</option>
+    </select>
+
+    <div id="coefficients"></div>
+
+    <label>Общая сумма ставки (₽):</label>
+    <input type="number" id="totalStake" placeholder="Введите сумму" oninput="calculate()" />
+
+    <div id="result" class="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    const coefDiv = document.getElementById('coefficients');
+    const outcomesSelect = document.getElementById('outcomes');
+
+    outcomesSelect.addEventListener('change', () => {
+      generateCoefInputs();
+      calculate();
+    });
+
+    generateCoefInputs();
+
+    function generateCoefInputs(coefs = []) {
+      const count = parseInt(outcomesSelect.value);
+      coefDiv.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        coefDiv.innerHTML += `<label>Коэффициент ${i + 1}:</label>
+          <input type="number" step="0.01" id="coef${i}" placeholder="Например, 2.10" oninput="calculate()" value="${coefs[i] ?? ''}" />`;
+      }
+    }
+
+    function calculate() {
+      const count = parseInt(outcomesSelect.value);
+      const stake = parseFloat(document.getElementById('totalStake').value);
+      const coefs = [];
+      for (let i = 0; i < count; i++) {
+        const val = parseFloat(document.getElementById(`coef${i}`).value);
+        coefs.push(val);
+      }
+
+      if (coefs.some(isNaN) || isNaN(stake) || stake <= 0) {
+        document.getElementById('result').style.display = 'none';
+        return;
+      }
+
+      let inverseSum = coefs.reduce((acc, k) => acc + (1 / k), 0);
+      const bets = coefs.map(k => (stake / k) / inverseSum);
+      const guaranteed = bets.map((b, i) => (b * coefs[i]));
+      const profit = guaranteed[0] - stake;
+      const profitPercent = (profit / stake) * 100;
+
+      let output = "";
+
+      if (profitPercent >= -5) {
+        output += `<div class='alert success'><strong>✅ Арбитражная ситуация:</strong> Да</div>`;
+      } else if (profitPercent >= -7) {
+        output += `<div class='alert warning'><strong>⚠️ Доходность снижена:</strong> Предельная зона</div>`;
+      } else {
+        output += `<div class='alert error'><strong>❌ Арбитражная ситуация:</strong> Нет</div>`;
+      }
+
+      output += `<strong>Ставки:</strong><br/>`;
+      bets.forEach((b, i) => {
+        output += `Исход ${i + 1}: ${b.toFixed(2)} ₽<br/>`;
+      });
+
+      output += `<br/><strong>${profit >= 0 ? 'Прибыль' : 'Убыток'}:</strong> ${profit.toFixed(2)} ₽ (${profitPercent.toFixed(2)}%)`;
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = output;
+      resultDiv.style.display = 'block';
+    }
+
+    async function loadMatches() {
+      const matchList = document.getElementById('matchList');
+      matchList.innerHTML = 'Загрузка матчей...';
+
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/odds');
+        const data = await res.json();
+
+        matchList.innerHTML = '';
+
+        data.slice(0, 10).forEach(event => {
+          if (event.bookmakers?.[0]?.markets?.[0]?.outcomes?.length >= 2) {
+            const outcomes = event.bookmakers[0].markets[0].outcomes;
+            const title = `${event.home_team} vs ${event.away_team}`;
+            const coefs = outcomes.map(o => o.price);
+
+            matchList.innerHTML += `
+              <div class="match">
+                <strong>${title}</strong><br/>
+                ${outcomes.map(o => `${o.name}: ${o.price}`).join('<br/>')}<br/>
+                <button onclick='selectMatch([${coefs.join(',')}])'>Выбрать</button>
+              </div>
+            `;
+          }
+        });
+      } catch (e) {
+        matchList.innerHTML = 'Ошибка загрузки матчей';
+      }
+    }
+
+    function selectMatch(coefs) {
+      document.getElementById('outcomes').value = coefs.length;
+      generateCoefInputs(coefs);
+      calculate();
+    }
+  </script>
+</body>
+</html>
