@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Калькулятор Вилок</title>
   <style>
     body {
@@ -149,7 +149,7 @@
       matchList.innerHTML = 'Загрузка матчей...';
 
       try {
-        const res = await fetch('http://127.0.0.1:5000/api/odds');
+        const res = await fetch('https://odds-proxy-server-1.onrender.com/api/odds');
         const data = await res.json();
 
         matchList.innerHTML = '';
@@ -179,6 +179,13 @@
       generateCoefInputs(coefs);
       calculate();
     }
+
+    // Тест загрузки API в консоль
+    fetch('https://odds-proxy-server-1.onrender.com/api/odds')
+      .then(res => res.json())
+      .then(data => console.log('Данные с API:', data))
+      .catch(err => console.error('Ошибка при загрузке API:', err));
   </script>
 </body>
 </html>
+
